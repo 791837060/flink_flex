@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true">
+
+    <springProperty scope="context" name="logName" source="spring.application.name" defaultValue="localhost"/>
+    <property name="FILE_LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss:SSS} %-5level [%thread] [%c] %msg%n"/>
+    <property name="log.max.file.size" value="100MB"/>
+    <property name="log.max.history" value="7"/>
+    <!-- 控制台输出日志 -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <charset>utf8</charset>
+        </encoder>
+    </appender>
+    <!--文件日志 -->
+    <appender name="FILE-INFO"
+              class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/${logName}.log</file>
+        <append>true</append>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logs/${logName}-%d{yyyy-MM-dd}-%i.zip</fileNamePattern>
+            <maxFileSize>${log.max.file.size}</maxFileSize>
+            <maxHistory>${log.max.history}</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>DEBUG</level>
+        </filter>
+    </appender>
+
+    <!-- 异步输出，异步的log片段必须在同步段后面，否则不起作用 -->
+    <appender name="FILE-INFO-ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <discardingThreshold>0</discardingThreshold>
+        <queueSize>1024</queueSize>
+        <neverBlock>true</neverBlock>
+        <appender-ref ref="FILE-INFO"/>
+    </appender>
+
+    <!-- 开发环境日志 -->
+    <springProfile name="dev,local,test">
+        <root level="INFO">
+            <appender-ref ref="STDOUT"/>
+            <appender-ref ref="FILE-INFO-ASYNC"/>
+        </root>
+    </springProfile>
+
+    <!-- 生产环境日志-->
+    <springProfile name="prod">
+        <root level="INFO">
+            <appender-ref ref="STDOUT"/>
+            <appender-ref ref="FILE-INFO-ASYNC"/>
+        </root>
+    </springProfile>
+
+    <logger name="org.springframework" level="INFO"/>
+
+</configuration>
