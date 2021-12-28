@@ -1,4 +1,4 @@
-package com.atguigu.hotitems_analysis.pro;
+package com.atguigu.hotitems_analysis.lemon;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -7,12 +7,13 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.sql.Timestamp;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * created by zhk
  */
-public class CoinFlexTradeJobLemon {
+public class Sql2SqlTradeJobLemon {
 
     public static void main(String[] args) throws Exception {
         // 1. 创建执行环境
@@ -26,7 +27,7 @@ public class CoinFlexTradeJobLemon {
         AtomicReference<Long> total = new AtomicReference<>(0L);
         AtomicReference<Long> total2 = new AtomicReference<>(0L);
         AtomicReference<Boolean> start = new AtomicReference<>(false);
-        AtomicReference<String> insertStr = new AtomicReference<>("INSERT INTO cf_trade_history (orderid, marketid, accountid, marketcode, orderside, ordertype, ordertimestamp, lastupdated, lasttradetimestamp, timeinforce, clientorderid, status, lastmatchedorderid, lastmatchedorderid2, matchedid, matchedtype, quantity, remainingqty, price, triggerprice, triggerlimit, fees, feeinstrumentid, leg1_price, leg2_price, tradetype, base, counter, market_type, is_triggered, is_liquidation, source) VALUES ");
+        AtomicReference<String> insertStr = new AtomicReference<>("INSERT INTO cf_trade_history (orderid, marketid, accountid, marketcode, orderside, ordertype, ordertimestamp, lastupdated, lasttradetimestamp, timeinforce, clientorderid, status, lastmatchedorderid, lastmatchedorderid2, matchedid, matchedtype, quantity, remainingqty, price, triggerprice, triggerlimit, fees, feeinstrumentid, leg1_price, leg2_price, tradetype, base, counter, market_type, is_triggered, is_liquidation, source,ordertime) VALUES ");
         DataStream<String> dataStream = inputStream
                    .map(line -> {
                        if(line.indexOf("INSERT INTO cf_trade_history")!=-1){
@@ -47,6 +48,12 @@ public class CoinFlexTradeJobLemon {
                            if(aLong%1000000==0){
                                System.out.println("已完成==>"+aLong/100000000.0);
                            }
+
+                           String[] split = line.split(",");
+                           Long orderTime = Long.valueOf(split[6].trim());
+                           Timestamp orderTimestamp = new Timestamp(orderTime);
+                           line = line.substring(0,line.lastIndexOf(")"))+",'"+orderTimestamp.toString()+"'),";
+
                            newLine += insertStr.get() + line;
                            if(newLine.endsWith(";")){
 
@@ -55,10 +62,13 @@ public class CoinFlexTradeJobLemon {
                                newLine = end;
                            }
 
-                           String[] split = line.split(",");
+                           if(orderTime<1630425600000L){
+                               return "";
+                           }
+
                            if(!" NULL".equals(split[2])&&!StringUtils.isEmpty(split[2])){
                                long num = Long.valueOf(split[2].trim())%100;
-                               newLine =newLine.replace("cf_trade_history","cf_trade_history_"+num);
+                               newLine =newLine.replace("cf_trade_history","cf_trade_history_ht_"+num);
                                total.set(total.get()+1);
                                return newLine;
                            }else{
@@ -81,11 +91,21 @@ public class CoinFlexTradeJobLemon {
                            if(aLong%1000000==0){
                                System.out.println("已完成==>"+aLong/100000000.0);
                            }
-                           newLine += insertStr.get() + line;
+
                            String[] split = line.split(",");
+                           Long orderTime = Long.valueOf(split[6].trim());
+                           Timestamp orderTimestamp = new Timestamp(orderTime);
+                           line = line.substring(0,line.lastIndexOf(")"))+",'"+orderTimestamp.toString()+"');";
+
+                           newLine += insertStr.get() + line;
+
+                           if(orderTime<1630425600000L){
+                               return "";
+                           }
+
                            if(!" NULL".equals(split[2])&&!StringUtils.isEmpty(split[2])){
                                long num = Long.valueOf(split[2].trim())%100;
-                               newLine=newLine.replace("cf_trade_history","cf_trade_history_"+num);
+                               newLine=newLine.replace("cf_trade_history","cf_trade_history_ht_"+num);
                                total.set(total.get()+1);
                                return newLine;
                            }else{
@@ -118,7 +138,7 @@ public class CoinFlexTradeJobLemon {
                    }).filter(data -> !"".equals(data));
 
         //dataStream.print();
-        dataStream.writeAsText("/Users/zenghuikang/Downloads/cf_trade_history_002.sql");
+        dataStream.writeAsText("/Users/zenghuikang/Downloads/cf_trade_history_ht_202109.sql");
 
         //Key (matchedid, orderid)=(304600832838511343, 1000083294535)
         //select * from cf_trade_history_92 where matchedid = 8951502652253133973 and orderid = 1000083294535

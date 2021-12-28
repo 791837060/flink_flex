@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * created by zhk
  */
-public class CoinFlexTradeJob2 {
+public class Sql2SqlTradeJob100_2 {
 
     public static void main(String[] args) throws Exception {
         // 1. 创建执行环境
